@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+  <body>
+  <!-- Written by Jamaal Chaney--> 
+  <div id="banner-photo"> 
+  <p style="text-align: center;"><img src="https://i.ibb.co/Ksfg5Xr/youtube-party-w-sub.png" alt="youtube-party-w-sub" border="0" /></p>
+  </div>  
+  <div id = "inputBox" style="text-align: center;"> YouTube URL : <input class="input-form" id="input-video-url" type="text"/> 
+    <button onclick="changeVid()">Change Video</button>
+</div>
+  
+  <!--  iframe & video tag replaces "player" tag, from youtube.js -->
+    <div id="player"></div>  <!-- Trevor Lane-->
+
+<!-- button declaration with styling -->
+<div class="button-group button-group-center">
+  <div class="button-group">
+  <div id = "button-group" style = "text-align:center">
+      
+  <button onclick="playVid()">Play</button>
+  <button onclick="pauseVid()">Pause</button> 
+  <button onclick="syncVid()">Sync</button>
+  </div>
+    
+  <!--End of Written by Jamaal Chaney-->
+  <script src="/socket.io/socket.io.js"></script>
+  
+  <!-- Start of Written by Trevor Lane-->
+  <script>
+var socket = io.connect();
+
+//every 5 seconds: execute sync function
+socket.on('autoSync',function(msg)
+{
+   syncVid();
+})
+
+
+
+/*Youtube Iframe functions: 
+following functions derived from Google documentation 
+https://developers.google.com/youtube/iframe_api_reference
+*/  
+//loads the IFrame Player API code asynchronously.
+  var tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      var firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+  // From documentation: This function creates an <iframe> (and YouTube player) after the API code downloads.
+  var player;
+      function onYouTubeIframeAPIReady() {
+        player = new YT.Player('player', {
+        autoplay: 0,
+        rel: 0,
+        controls: 1,
+          height: '390',
+          width: '640',
+          videoId: 'jqOx32Cv-XI',
+          events: {
+            'onReady': onPlayerReady 
+          }
+        });
+      }
+      // From Documentation The API will call this function when the video player is ready.
+      function onPlayerReady(event) {
+        event.target.playVideo();
+      }
+    /*
+     Written by Jamaal Chaney and Trevor Lane. Extracts the youtube video id from URL. Function used from http://ctrlq.org/code/19797-regex-youtube-id
+    */ 
+      function extractID(url)
+          {
+          var regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/;
+          var match = url.match(regExp);
+          if ( match && match[7].length == 11 ){
+              return match[7];
+          }
+          }
+    /*
+      End of referenced functions
+    */
+
+
+      //Pause all clients
+      //cl-pause is client pause
+      function pauseVid() {
+        socket.emit('cl-pause');
+      } 
+        socket.on('pause',function(){
+          console.log('pausing video');
+          player.pauseVideo();
+        }); 
+      
+      //Play all clients
+      function playVid() {
+        socket.emit('cl-play');
+      }
+        socket.on('play',function(){
+          console.log('playing video')
+          player.playVideo();
+        });
+     
+      //Load-in a new video
+      function changeVid() {
+        newVideoID = extractID(document.getElementById("input-video-url").value);
+        if(newVideoID != null)
+        {
+        socket.emit('changeVid',{videoID : newVideoID});
+        }
+      }
+        socket.on('changeVidID',function(data)
+        {
+          var newVidID = data.videoID;
+          console.log("new video id: " +newVidID); 
+          player.loadVideoById(newVidID); 
+        });
+      
+      
+      //SYNCING FUNCTIONALITY, for comprehension,  sockets numbered sequentially between index.html & server.js by order of execution
+      
+      //fires when sync button pressed, requests hostID from server
+      function syncVid() {
+        socket.emit('getHostID'); //1
+      }
+      //only host recieves this request, which it then sends host information to server
+      socket.on('getHostData',function() //4    only host should receive this
+      {
+        //console.log('I am host, recieved request for current time');
+        var currentTime = player.getCurrentTime();
+        var hostVidID = extractID(player.getVideoUrl());
+        //console.log('current time:'+ currentTime);
+        //console.log('Host Video ID: '+ hostVidID);
+        socket.emit('hostData',{ hostTime : currentTime,hostVidID : hostVidID}); //5    sending hostTime param which = currentTime
+      });
+
+      //seeks all connected clients to host's current time
+      socket.on('sync', function(data) // 8
+      {
+        var clientVideoID = extractID(player.getVideoUrl());
+        //console.log('From host: host time: '+ data.hostTime +
+        // "VideoID from Host: " + data.hostVidID);
+        // console.log('Client Video ID: '+ clientVideoID);
+        player.seekTo(data.hostTime +.2); //.2 is current best adjusment for general latency issues
+        //changes video url if someone joins the session after original video is changed
+        if(clientVideoID != null && data.hostVidID != clientVideoID) 
+        {
+          player.loadVideoById(data.hostVidID);
+        }
+      });
+</script>
+</body>
+</html>
+
+<!-- End of Written By Trevor Lane-->
+

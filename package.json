@@ -1,0 +1,17 @@
+{
+  "name": "watchparty",
+  "version": "1.0.0",
+  "description": "Watch youtube videos live in sync with your friends!",
+  "main": "index.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Trevor Lane & Jamaal Chaney",
+  "license": "ISC",
+  "dependencies": {
+    "bootstrap": "^4.3.1",
+    "express": "^4.16.4",
+    "node.js": "0.0.0",
+    "socket.io": "^2.2.0"
+  }
+}
